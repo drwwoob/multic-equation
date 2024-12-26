@@ -3,26 +3,55 @@ from tkinter import ttk
 import random
 import os
 import struct
+import pickle
 
 # File to store game statistics
-STATS_FILE = "game_stats.bin"
+STATS_FILE = "game_stats.pkl"
 
 def initialize_stats():
     """Initialize the statistics file if it doesn't exist."""
     if not os.path.exists(STATS_FILE):
+        # Initialize with default values
+        stats = {
+            "total_games": 0,
+            "total_correct": 0,
+            "correct_first_try": 0
+        }
         with open(STATS_FILE, "wb") as f:
-            # total_games, total_correct, correct_first_try
-            f.write(struct.pack("iii", 0, 0, 0))
+            pickle.dump(stats, f)
 
 def read_stats():
-    """Read game statistics from the file."""
-    with open(STATS_FILE, "rb") as f:
-        return struct.unpack("iii", f.read())
+    # Assuming you're reading stats from a file or some data source
+    try:
+        with open("stats.txt", "r") as f:
+            r_total_games = int(f.readline().strip())
+            r_total_correct = int(f.readline().strip())
+            r_correct_first_try = int(f.readline().strip())
+            c_total_games = int(f.readline().strip())
+            c_total_correct = int(f.readline().strip())
+            c_correct_first_try = int(f.readline().strip())
+            return r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try
+    except FileNotFoundError:
+        return 0, 0, 0, 0, 0, 0
 
-def update_stats(total_games, total_correct, correct_first_try):
-    """Update the game statistics."""
-    with open(STATS_FILE, "wb") as f:
-        f.write(struct.pack("iii", total_games, total_correct, correct_first_try))
+def update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try):
+    with open("stats.txt", "w") as f:
+        f.write(f"{r_total_games}\n")
+        f.write(f"{r_total_correct}\n")
+        f.write(f"{r_correct_first_try}\n")
+        f.write(f"{c_total_games}\n")
+        f.write(f"{c_total_correct}\n")
+        f.write(f"{c_correct_first_try}\n")
+
+# def update_game_stats(self, correct=False):
+#     total_games, total_correct, correct_first_try = self.stats
+#     total_games += 1
+#     if correct:
+#         total_correct += 1
+#         if self.first_try:
+#             correct_first_try += 1
+#     self.stats = (total_games, total_correct, correct_first_try)
+#     update_stats(total_games, total_correct, correct_first_try)
 
 def generate_quadratic():
     """Generate a quadratic equation with integer coefficients and solutions."""
@@ -34,7 +63,6 @@ def generate_quadratic():
         c = a * x1 * x2
         if -100 <= a <= 100 and -100 <= b <= 100 and -100 <= c <= 100:
             return a, b, c, x1, x2
-
 class QuadraticApp:
     def __init__(self, root):
         self.root = root
@@ -62,6 +90,10 @@ class QuadraticApp:
         self.main_frame.pack(expand=True, fill=tk.BOTH)
         self.display_mode1()
 
+        # Records frame (Initially hidden)
+        self.records_frame = ttk.Frame(self.root, padding=10, style="TFrame", relief="solid", borderwidth=2, width=300)
+        self.records_frame.pack_forget()  # Hide the records frame initially
+
         # Style
         style = ttk.Style()
         style.theme_use("clam")
@@ -72,20 +104,60 @@ class QuadraticApp:
         style.map("TButton",
                   background=[('active', 'black'), ('!disabled', 'black')],
                   foreground=[('active', 'white')])
-        
+
+        # Bind click event to close records frame when clicking outside
+        self.root.bind("<Button-1>", self.close_records_if_clicked_outside)
+
     def show_records(self):
-        """Display game statistics in a popup window."""
-        total_games, total_correct, correct_first_try = self.stats
-        popup = tk.Toplevel(self.root)
-        popup.title("Game Records")
-        popup.geometry("300x200")
-        popup.configure(bg="black")
-        ttk.Label(popup, text="Game Records", style="TLabel").pack(pady=10)
-        ttk.Label(popup, text=f"Total Games Played: {total_games}", style="TLabel").pack(pady=5)
-        ttk.Label(popup, text=f"Correct Answers: {total_correct}", style="TLabel").pack(pady=5)
-        ttk.Label(popup, text=f"Correct on First Try: {correct_first_try}", style="TLabel").pack(pady=5)
-        ttk.Button(popup, text="Close", command=popup.destroy, style="TButton").pack(pady=10)
-        
+        """Display game statistics in the main window."""
+        r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try = self.stats
+
+        # Clear previous records
+        for widget in self.records_frame.winfo_children():
+            widget.destroy()
+
+        # Display new records in the records frame
+        ttk.Label(self.records_frame, text="Game Records", style="TLabel").pack(pady=10)
+        if (self.current_mode.get() == "mode1"):
+            ttk.Label(self.records_frame, text=f"Total Games Played: {r_total_games}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct Answers: {r_total_correct}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct on First Try: {r_correct_first_try}", style="TLabel").pack(pady=5)
+        elif (self.current_mode.get() == "mode2"):
+            ttk.Label(self.records_frame, text=f"Total Games Played: {c_total_games}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct Answers: {c_total_correct}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct on First Try: {c_correct_first_try}", style="TLabel").pack(pady=5)
+        ttk.Button(self.records_frame, text="Close", command=self.hide_records, style="TButton").pack(pady=10)
+
+        # Clear any previous placements and re-center the records frame
+        self.records_frame.place_forget()  # Make sure to clear any previous position
+        self.records_frame.place(relx=0.5, rely=0.5, anchor="center")  # Re-place the frame at center
+        self.records_frame.lift()  # Make sure the records frame is on top
+
+        # Force tkinter to update the layout
+        self.records_frame.update_idletasks()  # Force a layout update
+        self.root.update()  # Force the window to update
+
+    def hide_records(self):
+        """Hide the records frame and re-render the main content."""
+        self.records_frame.place_forget()  # Completely remove it from the layout
+        self.root.unbind("<Button-1>")  # Unbind the click event after closing
+
+        # Re-render the main content by switching mode again
+        self.switch_mode()  # This will call display_mode1 or display_mode2 depending on the current mode
+
+    def close_records_if_clicked_outside(self, event):
+        """Close the records frame if the user clicks outside of it."""
+        # Get the coordinates of the records_frame
+        x1 = self.records_frame.winfo_rootx()
+        y1 = self.records_frame.winfo_rooty()
+        x2 = x1 + self.records_frame.winfo_width()
+        y2 = y1 + self.records_frame.winfo_height()
+
+        # Check if the click is outside the frame and hide the records
+        if self.records_frame.winfo_ismapped() and (event.x_root < x1 or event.x_root > x2 or event.y_root < y1 or event.y_root > y2):
+            self.hide_records()
+            self.root.unbind("<Button-1>")  # Unbind click event after closing
+
     def display_mode1(self):
         self.clear_frame()
         ttk.Label(self.main_frame, text=f"Equation: {self.a}x² + {self.b}x + {self.c} = 0", style="TLabel").pack(pady=10)
@@ -114,7 +186,6 @@ class QuadraticApp:
         self.result_label = ttk.Label(self.main_frame, text="", style="TLabel")
         self.result_label.pack(pady=5)
 
-
     def clear_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
@@ -136,9 +207,9 @@ class QuadraticApp:
     def check_coefficients(self):
         try:
             a = int(self.coeff_a_entry.get())
-            b = int(self.coeff_b_entry.get())
-            c = int(self.coeff_c_entry.get())
-            if a == self.a and b == self.b and c == self.c:
+            b = int(self.coeff_b_entry.get()) / a
+            c = int(self.coeff_c_entry.get()) / a
+            if b == self.b / self.a and c == self.c / self.a:
                 self.result_label.config(text="Correct!", foreground="green")
                 self.update_game_stats(correct=True)
                 self.next_question()
@@ -149,14 +220,23 @@ class QuadraticApp:
             self.result_label.config(text="Please enter valid integers.", foreground="red")
 
     def update_game_stats(self, correct=False):
-        total_games, total_correct, correct_first_try = self.stats
-        total_games += 1
-        if correct:
-            total_correct += 1
-            if self.first_try:
-                correct_first_try += 1
-        self.stats = (total_games, total_correct, correct_first_try)
-        update_stats(total_games, total_correct, correct_first_try)
+        r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try = self.stats
+        if (self.current_mode.get() == "mode1"):
+            r_total_games += 1
+            if correct:
+                r_total_correct += 1
+                if self.first_try:
+                    r_correct_first_try += 1
+            self.stats = (r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
+            update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
+        if (self.current_mode.get() == "mode2"):
+            c_total_games += 1
+            if correct:
+                c_total_correct += 1
+                if self.first_try:
+                    c_correct_first_try += 1
+            self.stats = (r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
+            update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
 
     def next_question(self):
         self.a, self.b, self.c, self.x1, self.x2 = generate_quadratic()
@@ -168,6 +248,7 @@ class QuadraticApp:
             self.display_mode1()
         else:
             self.display_mode2()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
