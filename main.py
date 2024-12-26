@@ -13,35 +13,36 @@ def initialize_stats():
     if not os.path.exists(STATS_FILE):
         # Initialize with default values
         stats = {
-            "total_games": 0,
-            "total_correct": 0,
-            "correct_first_try": 0
+            "r_total_games": 0,
+            "r_total_correct": 0,
+            "r_correct_first_try": 0,
+            "c_total_games": 0,
+            "c_total_correct": 0,
+            "c_correct_first_try": 0
         }
         with open(STATS_FILE, "wb") as f:
             pickle.dump(stats, f)
 
 def read_stats():
-    # Assuming you're reading stats from a file or some data source
-    try:
-        with open("stats.txt", "r") as f:
-            r_total_games = int(f.readline().strip())
-            r_total_correct = int(f.readline().strip())
-            r_correct_first_try = int(f.readline().strip())
-            c_total_games = int(f.readline().strip())
-            c_total_correct = int(f.readline().strip())
-            c_correct_first_try = int(f.readline().strip())
-            return r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try
-    except FileNotFoundError:
-        return 0, 0, 0, 0, 0, 0
-
-def update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try):
-    with open("stats.txt", "w") as f:
-        f.write(f"{r_total_games}\n")
-        f.write(f"{r_total_correct}\n")
-        f.write(f"{r_correct_first_try}\n")
-        f.write(f"{c_total_games}\n")
-        f.write(f"{c_total_correct}\n")
-        f.write(f"{c_correct_first_try}\n")
+    """Read the statistics from the PKL file."""
+    if os.path.exists(STATS_FILE):
+        with open(STATS_FILE, "rb") as f:
+            stats = pickle.load(f)
+    else:
+        # Default stats if the file does not exist
+        stats = {
+            "r_total_games": 0,
+            "r_total_correct": 0,
+            "r_correct_first_try": 0,
+            "c_total_games": 0,
+            "c_total_correct": 0,
+            "c_correct_first_try": 0
+        }
+    return stats
+def update_stats(stats):
+    """Update the statistics in the PKL file."""
+    with open(STATS_FILE, "wb") as f:
+        pickle.dump(stats, f)
 
 # def update_game_stats(self, correct=False):
 #     total_games, total_correct, correct_first_try = self.stats
@@ -119,13 +120,13 @@ class QuadraticApp:
         # Display new records in the records frame
         ttk.Label(self.records_frame, text="Game Records", style="TLabel").pack(pady=10)
         if (self.current_mode.get() == "mode1"):
-            ttk.Label(self.records_frame, text=f"Total Games Played: {r_total_games}", style="TLabel").pack(pady=5)
-            ttk.Label(self.records_frame, text=f"Correct Answers: {r_total_correct}", style="TLabel").pack(pady=5)
-            ttk.Label(self.records_frame, text=f"Correct on First Try: {r_correct_first_try}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Total Games Played: {self.stats[r_total_games]}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct Answers: {self.stats[r_total_correct]}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct on First Try: {self.stats[r_correct_first_try]}", style="TLabel").pack(pady=5)
         elif (self.current_mode.get() == "mode2"):
-            ttk.Label(self.records_frame, text=f"Total Games Played: {c_total_games}", style="TLabel").pack(pady=5)
-            ttk.Label(self.records_frame, text=f"Correct Answers: {c_total_correct}", style="TLabel").pack(pady=5)
-            ttk.Label(self.records_frame, text=f"Correct on First Try: {c_correct_first_try}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Total Games Played: {self.stats[c_total_games]}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct Answers: {self.stats[c_total_correct]}", style="TLabel").pack(pady=5)
+            ttk.Label(self.records_frame, text=f"Correct on First Try: {self.stats[c_correct_first_try]}", style="TLabel").pack(pady=5)
         ttk.Button(self.records_frame, text="Close", command=self.hide_records, style="TButton").pack(pady=10)
 
         # Clear any previous placements and re-center the records frame
@@ -220,23 +221,21 @@ class QuadraticApp:
             self.result_label.config(text="Please enter valid integers.", foreground="red")
 
     def update_game_stats(self, correct=False):
-        r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try = self.stats
-        if (self.current_mode.get() == "mode1"):
-            r_total_games += 1
+        if self.current_mode.get() == "mode1":
+            self.stats["r_total_games"] += 1
             if correct:
-                r_total_correct += 1
+                self.stats["r_total_correct"] += 1
                 if self.first_try:
-                    r_correct_first_try += 1
-            self.stats = (r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
-            update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
-        if (self.current_mode.get() == "mode2"):
-            c_total_games += 1
+                    self.stats["r_correct_first_try"] += 1
+        elif self.current_mode.get() == "mode2":
+            self.stats["c_total_games"] += 1
             if correct:
-                c_total_correct += 1
+                self.stats["c_total_correct"] += 1
                 if self.first_try:
-                    c_correct_first_try += 1
-            self.stats = (r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
-            update_stats(r_total_games, r_total_correct, r_correct_first_try, c_total_games, c_total_correct, c_correct_first_try)
+                    self.stats["c_correct_first_try"] += 1
+
+        # Save updated stats
+        update_stats(self.stats)
 
     def next_question(self):
         self.a, self.b, self.c, self.x1, self.x2 = generate_quadratic()
